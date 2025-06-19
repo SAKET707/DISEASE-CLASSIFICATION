@@ -1,6 +1,7 @@
 # 🩺 Disease Classification 
 
 This project is a **Streamlit-based web app** that classifies diseases based on user-reported symptoms. It leverages machine learning to provide fast and accurate predictions across a wide range of common illnesses.
+URL : https://disease-classification-by-saket.streamlit.app/
 
 ---
 

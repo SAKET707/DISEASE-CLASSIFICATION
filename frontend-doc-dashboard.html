@@ -1,0 +1,743 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .avatar-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .status-ongoing {
+            background-color: #fef3c7;
+            color: #d97706;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+        }
+        .status-chronic {
+            background-color: #fee2e2;
+            color: #ef4444;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+        }
+        .patient-item:hover {
+            background-color: #e5e7eb;
+            cursor: pointer;
+        }
+        .patient-item.selected {
+            background-color: #bfdbfe;
+        }
+        .tooltip {
+            position: relative;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 120px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            min-width: 200px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 8px;
+            padding: 8px;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        .dropdown-content p {
+            padding: 4px 8px;
+            margin: 0;
+        }
+        .dropdown-content p:hover {
+            background-color: #f1f5f9;
+            border-radius: 4px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow flex items-center justify-between p-4">
+            <div class="flex items-center">
+                <div class="text-blue-600 font-bold text-xl">N6T</div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-gray-600">DASHBOARD</span>
+                <span id="patients-link" class="text-gray-600 cursor-pointer hover:text-blue-500">PATIENTS</span>
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
+                    <span class="text-gray-600">D</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Add Patient Modal -->
+        <div id="add-patient-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAddPatientModal()">×</span>
+                <h2 class="text-xl font-semibold mb-4">Add New Patient</h2>
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Name</label>
+                        <input type="text" id="new-patient-name" class="w-full p-2 border rounded-lg" placeholder="Enter patient name">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Age</label>
+                        <input type="text" id="new-patient-age" class="w-full p-2 border rounded-lg" placeholder="e.g., 30 years">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Gender</label>
+                        <select id="new-patient-gender" class="w-full p-2 border rounded-lg">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Phone</label>
+                        <input type="text" id="new-patient-phone" class="w-full p-2 border rounded-lg" placeholder="Enter phone number">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Email</label>
+                        <input type="email" id="new-patient-email" class="w-full p-2 border rounded-lg" placeholder="Enter email">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Address</label>
+                        <textarea id="new-patient-address" class="w-full p-2 border rounded-lg" rows="3" placeholder="Enter address"></textarea>
+                    </div>
+                    <!-- Additional fields to ensure scrolling -->
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Blood Type (Optional)</label>
+                        <input type="text" id="new-patient-blood-type" class="w-full p-2 border rounded-lg" placeholder="e.g., A+">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Weight (Optional)</label>
+                        <input type="text" id="new-patient-weight" class="w-full p-2 border rounded-lg" placeholder="e.g., 70 kg">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 font-semibold mb-2">Height (Optional)</label>
+                        <input type="text" id="new-patient-height" class="w-full p-2 border rounded-lg" placeholder="e.g., 170 cm">
+                    </div>
+                </div>
+                <button id="add-patient-btn" onclick="addPatient()" class="w-full bg-blue-500 text-white py-2 rounded-lg mt-4">Add Patient</button>
+            </div>
+        </div>
+
+        <div class="flex flex-col lg:flex-row flex-1">
+            <!-- Sidebar -->
+            <aside class="w-full lg:w-64 bg-white shadow p-4">
+                <div class="mb-6">
+                    <h2 class="text-gray-600 font-semibold mb-2">PATIENT SEARCH</h2>
+                    <div class="relative flex items-center">
+                        <input type="text" id="patient-search" placeholder="Search by patient name, ID, or phone..." class="w-full p-2 border rounded-lg">
+                        <button id="clear-search-btn" class="tooltip absolute right-2 top-2 bg-gray-300 text-gray-700 px-2 py-1 rounded-lg">
+                            Clear
+                            <span class="tooltip-text">Clear search</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="text-gray-600 font-semibold mb-2">RECENT PATIENTS</h2>
+                    <ul id="recent-patients" class="space-y-2">
+                        <li class="patient-item flex items-center space-x-2 p-2 bg-blue-100 rounded-lg" data-id="PT-2024-001">
+                            <div class="avatar-circle bg-blue-500">R</div>
+                            <div>
+                                <p class="font-semibold">Rajesh Kumar</p>
+                                <p class="text-sm text-gray-500">ID: PT-2024-001</p>
+                            </div>
+                        </li>
+                        <li class="patient-item flex items-center space-x-2 p-2" data-id="PT-2024-002">
+                            <div class="avatar-circle bg-green-500">P</div>
+                            <div>
+                                <p class="font-semibold">Priya Sharma</p>
+                                <p class="text-sm text-gray-500">ID: PT-2024-002</p>
+                            </div>
+                        </li>
+                        <li class="patient-item flex items-center space-x-2 p-2" data-id="PT-2024-003">
+                            <div class="avatar-circle bg-purple-500">A</div>
+                            <div>
+                                <p class="font-semibold">Amit Patel</p>
+                                <p class="text-sm text-gray-500">ID: PT-2024-003</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-6">
+                <div class="flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-6">
+                    <!-- Patient Details -->
+                    <div id="patient-details" class="bg-white shadow rounded-lg p-6 w-full lg:w-2/3">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <div id="patient-avatar" class="avatar-circle bg-blue-500">RK</div>
+                            <div class="dropdown">
+                                <h2 id="patient-name" class="text-xl font-semibold cursor-pointer hover:text-blue-500">Rajesh Kumar</h2>
+                                <div id="patient-history" class="dropdown-content">
+                                    <!-- Patient history will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <p id="patient-id" class="text-gray-500">PATIENT ID: #12345</p>
+                            <p id="patient-last-visit" class="text-gray-500">Last visit: Dec 15, 2024</p>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 mt-4">
+                            <div>
+                                <h3 class="text-gray-600 font-semibold">Basic Information</h3>
+                                <p id="patient-age">Age: 42 years</p>
+                                <p id="patient-gender">Gender: Male</p>
+                                <p id="patient-blood-type">Blood Type: B+</p>
+                                <p id="patient-weight">Weight: 72 kg</p>
+                                <p id="patient-height">Height: 175 cm</p>
+                            </div>
+                            <div>
+                                <h3 class="text-gray-600 font-semibold">Contact Information</h3>
+                                <p id="patient-phone">📞 1234567890</p>
+                                <p id="patient-email">📧 rajesh.kumar@email.com</p>
+                                <p id="patient-address">📍 15/B, Sector 12, New Delhi, 110001</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-gray-600 font-semibold">Medical History</h3>
+                            <div id="patient-medical-history">
+                                <p><span class="status-ongoing">Ongoing</span> Hypertension - Diagnosed: Jan 2022</p>
+                                <p><span class="status-chronic">Chronic</span> Diabetes Type 2 - Diagnosed: Mar 2021</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Prescription Generator -->
+                    <div class="bg-white shadow rounded-lg p-6 w-full lg:w-1/3">
+                        <h2 class="text-xl font-semibold mb-4">AI Prescription Generator</h2>
+                        <div class="mb-4">
+                            <label class="block text-gray-600 font-semibold mb-2">Symptoms</label>
+                            <textarea id="symptoms" class="w-full p-2 border rounded-lg" rows="3" placeholder="Headache, fever, fatigue, muscle aches"></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-600 font-semibold mb-2">Preliminary Diagnosis</label>
+                            <input type="text" id="diagnosis" class="w-full p-2 border rounded-lg" value="Viral Infection">
+                        </div>
+                        <button id="generate-btn" class="tooltip w-full bg-blue-500 text-white py-2 rounded-lg">
+                            <span id="generate-btn-text">Generate Prescription</span>
+                            <span class="tooltip-text">Generate a prescription based on symptoms</span>
+                        </button>
+                        <p id="prescription-message" class="text-green-600 mt-2 hidden">Prescription generated successfully!</p>
+                    </div>
+                </div>
+
+                <!-- Prescriptions -->
+                <div class="bg-white shadow rounded-lg p-6 mt-6">
+                    <h2 class="text-xl font-semibold mb-4">Recent Prescriptions</h2>
+                    <div id="prescriptions-list" class="space-y-4">
+                        <div class="border-b pb-2">
+                            <p class="font-semibold">Antihypertensive</p>
+                            <p class="text-gray-500">Dec 10, 2024</p>
+                        </div>
+                        <div class="border-b pb-2">
+                            <p class="font-semibold">Metformin</p>
+                            <p class="text-gray-500">Nov 28, 2024</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // TypeScript code compiled to JavaScript
+        // Originally written as app.ts
+        (function () {
+            // Interfaces for type safety
+            const patients = [
+                {
+                    id: 'PT-2024-001',
+                    name: 'Rajesh Kumar',
+                    patientId: '#12345',
+                    lastVisit: 'Dec 15, 2024',
+                    avatarInitial: 'RK',
+                    avatarColor: 'bg-blue-500',
+                    age: '42 years',
+                    gender: 'Male',
+                    bloodType: 'B+',
+                    weight: '72 kg',
+                    height: '175 cm',
+                    phone: '1234567890',
+                    email: 'rajesh.kumar@email.com',
+                    address: '15/B, Sector 12, New Delhi, 110001',
+                    medicalHistory: [
+                        { status: 'ongoing', condition: 'Hypertension', diagnosed: 'Jan 2022' },
+                        { status: 'chronic', condition: 'Diabetes Type 2', diagnosed: 'Mar 2021' }
+                    ],
+                    history: [
+                        'Initial Consultation - Jan 10, 2021',
+                        'Follow-up Visit - Mar 15, 2021',
+                        'Hypertension Diagnosis - Jan 5, 2022',
+                        'Routine Checkup - Dec 15, 2024'
+                    ],
+                    prescriptions: [
+                        { name: 'Antihypertensive', date: 'Dec 10, 2024' },
+                        { name: 'Metformin', date: 'Nov 28, 2024' }
+                    ]
+                },
+                {
+                    id: 'PT-2024-002',
+                    name: 'Priya Sharma',
+                    patientId: '#12346',
+                    lastVisit: 'Nov 20, 2024',
+                    avatarInitial: 'P',
+                    avatarColor: 'bg-green-500',
+                    age: '35 years',
+                    gender: 'Female',
+                    bloodType: 'A+',
+                    weight: '60 kg',
+                    height: '160 cm',
+                    phone: '9876543210',
+                    email: 'priya.sharma@email.com',
+                    address: '22/A, Sector 5, Mumbai, 400001',
+                    medicalHistory: [
+                        { status: 'ongoing', condition: 'Asthma', diagnosed: 'Feb 2023' }
+                    ],
+                    history: [
+                        'Initial Consultation - Jan 20, 2023',
+                        'Asthma Diagnosis - Feb 15, 2023',
+                        'Routine Checkup - Nov 20, 2024'
+                    ],
+                    prescriptions: [
+                        { name: 'Inhaler (Salbutamol)', date: 'Nov 20, 2024' },
+                        { name: 'Montelukast', date: 'Oct 10, 2024' }
+                    ]
+                },
+                {
+                    id: 'PT-2024-003',
+                    name: 'Amit Patel',
+                    patientId: '#12347',
+                    lastVisit: 'Oct 10, 2024',
+                    avatarInitial: 'A',
+                    avatarColor: 'bg-purple-500',
+                    age: '50 years',
+                    gender: 'Male',
+                    bloodType: 'O-',
+                    weight: '80 kg',
+                    height: '170 cm',
+                    phone: '9123456789',
+                    email: 'amit.patel@email.com',
+                    address: '10/C, Sector 8, Ahmedabad, 380001',
+                    medicalHistory: [
+                        { status: 'chronic', condition: 'High Cholesterol', diagnosed: 'May 2020' }
+                    ],
+                    history: [
+                        'Initial Consultation - Apr 10, 2020',
+                        'High Cholesterol Diagnosis - May 5, 2020',
+                        'Routine Checkup - Oct 10, 2024'
+                    ],
+                    prescriptions: [
+                        { name: 'Atorvastatin', date: 'Oct 5, 2024' },
+                        { name: 'Omega-3 Supplement', date: 'Sep 15, 2024' }
+                    ]
+                }
+            ];
+            let currentPatientId = 'PT-2024-001';
+            // View Patient Details
+            function viewPatient(patientId) {
+                const patient = patients.find(p => p.id === patientId);
+                if (!patient)
+                    return;
+                currentPatientId = patientId;
+                // Update Patient Details
+                const patientAvatar = document.getElementById('patient-avatar');
+                const patientName = document.getElementById('patient-name');
+                const patientIdElement = document.getElementById('patient-id');
+                const patientLastVisit = document.getElementById('patient-last-visit');
+                const patientAge = document.getElementById('patient-age');
+                const patientGender = document.getElementById('patient-gender');
+                const patientBloodType = document.getElementById('patient-blood-type');
+                const patientWeight = document.getElementById('patient-weight');
+                const patientHeight = document.getElementById('patient-height');
+                const patientPhone = document.getElementById('patient-phone');
+                const patientEmail = document.getElementById('patient-email');
+                const patientAddress = document.getElementById('patient-address');
+                const medicalHistoryDiv = document.getElementById('patient-medical-history');
+                const patientHistoryDiv = document.getElementById('patient-history');
+                const prescriptionsList = document.getElementById('prescriptions-list');
+                if (patientAvatar)
+                    patientAvatar.className = `avatar-circle ${patient.avatarColor}`;
+                if (patientAvatar)
+                    patientAvatar.textContent = patient.avatarInitial;
+                if (patientName)
+                    patientName.textContent = patient.name;
+                if (patientIdElement)
+                    patientIdElement.textContent = `PATIENT ID: ${patient.patientId}`;
+                if (patientLastVisit)
+                    patientLastVisit.textContent = `Last visit: ${patient.lastVisit}`;
+                if (patientAge)
+                    patientAge.textContent = `Age: ${patient.age}`;
+                if (patientGender)
+                    patientGender.textContent = `Gender: ${patient.gender}`;
+                if (patientBloodType)
+                    patientBloodType.textContent = `Blood Type: ${patient.bloodType}`;
+                if (patientWeight)
+                    patientWeight.textContent = `Weight: ${patient.weight}`;
+                if (patientHeight)
+                    patientHeight.textContent = `Height: ${patient.height}`;
+                if (patientPhone)
+                    patientPhone.textContent = `📞 ${patient.phone}`;
+                if (patientEmail)
+                    patientEmail.textContent = `📧 ${patient.email}`;
+                if (patientAddress)
+                    patientAddress.textContent = `📍 ${patient.address}`;
+                // Update Medical History
+                if (medicalHistoryDiv) {
+                    medicalHistoryDiv.innerHTML = patient.medicalHistory
+                        .map(history => `
+                <p><span class="status-${history.status}">${history.status.charAt(0).toUpperCase() + history.status.slice(1)}</span> ${history.condition} - Diagnosed: ${history.diagnosed}</p>
+            `)
+                        .join('');
+                }
+                // Update Patient History Dropdown
+                if (patientHistoryDiv) {
+                    patientHistoryDiv.innerHTML = patient.history
+                        .map(event => `
+                <p>${event}</p>
+            `)
+                        .join('');
+                }
+                // Update Prescriptions
+                if (prescriptionsList) {
+                    prescriptionsList.innerHTML = patient.prescriptions
+                        .map(prescription => `
+                <div class="border-b pb-2">
+                    <p class="font-semibold">${prescription.name}</p>
+                    <p class="text-gray-500">${prescription.date}</p>
+                </div>
+            `)
+                        .join('');
+                }
+                // Highlight Selected Patient
+                const patientItems = document.querySelectorAll('.patient-item');
+                patientItems.forEach(item => item.classList.remove('selected'));
+                const selectedItem = document.querySelector(`.patient-item[data-id="${patientId}"]`);
+                if (selectedItem)
+                    selectedItem.classList.add('selected');
+            }
+            // Real-time Patient Search
+            function searchPatients() {
+                const searchInput = document.getElementById('patient-search');
+                if (!searchInput)
+                    return;
+                const searchValue = searchInput.value.toLowerCase();
+                const patientItems = document.querySelectorAll('.patient-item');
+                patientItems.forEach(item => {
+                    const nameElement = item.querySelector('p.font-semibold');
+                    const name = nameElement ? nameElement.textContent.toLowerCase() : '';
+                    const id = item.getAttribute('data-id')?.toLowerCase() || '';
+                    if (name.includes(searchValue) || id.includes(searchValue)) {
+                        item.style.display = 'flex';
+                    }
+                    else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+            // Clear Search
+            function clearSearch() {
+                const searchInput = document.getElementById('patient-search');
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchPatients();
+                }
+            }
+            // AI Prescription Generator
+            function generatePrescription() {
+                const symptomsInput = document.getElementById('symptoms');
+                const diagnosisInput = document.getElementById('diagnosis');
+                const generateBtn = document.getElementById('generate-btn');
+                const generateBtnText = document.getElementById('generate-btn-text');
+                const message = document.getElementById('prescription-message');
+                if (!symptomsInput || !diagnosisInput || !generateBtn || !generateBtnText || !message) {
+                    return;
+                }
+                const symptoms = symptomsInput.value;
+                const diagnosis = diagnosisInput.value;
+                if (!symptoms || !diagnosis) {
+                    alert('Please fill in both symptoms and preliminary diagnosis.');
+                    return;
+                }
+                // Show loading state
+                generateBtn.disabled = true;
+                generateBtnText.textContent = 'Generating...';
+                // Simulate AI processing
+                setTimeout(() => {
+                    let prescription = '';
+                    if (diagnosis.toLowerCase().includes('viral infection')) {
+                        prescription = 'Paracetamol 500mg - Twice daily for 5 days';
+                    }
+                    else if (diagnosis.toLowerCase().includes('hypertension')) {
+                        prescription = 'Amlodipine 5mg - Once daily';
+                    }
+                    else {
+                        prescription = 'General Multivitamin - Once daily for 10 days';
+                    }
+                    // Add new prescription to the current patient's list
+                    const patient = patients.find(p => p.id === currentPatientId);
+                    if (patient) {
+                        patient.prescriptions.unshift({
+                            name: prescription,
+                            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        });
+                        // Update the prescriptions list
+                        const prescriptionsList = document.getElementById('prescriptions-list');
+                        if (prescriptionsList) {
+                            prescriptionsList.innerHTML = patient.prescriptions
+                                .map(prescription => `
+                        <div class="border-b pb-2">
+                            <p class="font-semibold">${prescription.name}</p>
+                            <p class="text-gray-500">${prescription.date}</p>
+                        </div>
+                    `)
+                                .join('');
+                        }
+                    }
+                    // Reset form and button
+                    symptomsInput.value = '';
+                    diagnosisInput.value = '';
+                    generateBtn.disabled = false;
+                    generateBtnText.textContent = 'Generate Prescription';
+                    // Show success message
+                    message.classList.remove('hidden');
+                    setTimeout(() => message.classList.add('hidden'), 3000);
+                }, 1000);
+            }
+            // Open Add Patient Modal
+            function openAddPatientModal() {
+                const modal = document.getElementById('add-patient-modal');
+                if (modal) {
+                    modal.style.display = 'block';
+                }
+            }
+            // Close Add Patient Modal
+            function closeAddPatientModal() {
+                const modal = document.getElementById('add-patient-modal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+                // Reset form
+                const nameInput = document.getElementById('new-patient-name');
+                const ageInput = document.getElementById('new-patient-age');
+                const genderInput = document.getElementById('new-patient-gender');
+                const phoneInput = document.getElementById('new-patient-phone');
+                const emailInput = document.getElementById('new-patient-email');
+                const addressInput = document.getElementById('new-patient-address');
+                const bloodTypeInput = document.getElementById('new-patient-blood-type');
+                const weightInput = document.getElementById('new-patient-weight');
+                const heightInput = document.getElementById('new-patient-height');
+                if (nameInput)
+                    nameInput.value = '';
+                if (ageInput)
+                    ageInput.value = '';
+                if (genderInput)
+                    genderInput.value = 'Male';
+                if (phoneInput)
+                    phoneInput.value = '';
+                if (emailInput)
+                    emailInput.value = '';
+                if (addressInput)
+                    addressInput.value = '';
+                if (bloodTypeInput)
+                    bloodTypeInput.value = '';
+                if (weightInput)
+                    weightInput.value = '';
+                if (heightInput)
+                    heightInput.value = '';
+            }
+            // Add Patient
+            function addPatient() {
+                // Get form elements
+                const nameInput = document.getElementById('new-patient-name');
+                const ageInput = document.getElementById('new-patient-age');
+                const genderInput = document.getElementById('new-patient-gender');
+                const phoneInput = document.getElementById('new-patient-phone');
+                const emailInput = document.getElementById('new-patient-email');
+                const addressInput = document.getElementById('new-patient-address');
+                const bloodTypeInput = document.getElementById('new-patient-blood-type');
+                const weightInput = document.getElementById('new-patient-weight');
+                const heightInput = document.getElementById('new-patient-height');
+                const addPatientBtn = document.getElementById('add-patient-btn');
+                // Validate form elements exist
+                if (!nameInput || !ageInput || !genderInput || !phoneInput || !emailInput || !addressInput || !addPatientBtn) {
+                    console.error('One or more form elements are missing.');
+                    return;
+                }
+                // Get values
+                const name = nameInput.value.trim();
+                const age = ageInput.value.trim();
+                const gender = genderInput.value;
+                const phone = phoneInput.value.trim();
+                const email = emailInput.value.trim();
+                const address = addressInput.value.trim();
+                const bloodType = bloodTypeInput?.value.trim() || 'Unknown';
+                const weight = weightInput?.value.trim() || 'Unknown';
+                const height = heightInput?.value.trim() || 'Unknown';
+                // Validate required fields
+                if (!name || !age || !gender || !phone || !email || !address) {
+                    alert('Please fill in all required fields.');
+                    return;
+                }
+                // Disable button to prevent multiple submissions
+                addPatientBtn.disabled = true;
+                addPatientBtn.textContent = 'Adding...';
+                // Generate a new patient ID
+                const newPatientId = `PT-${new Date().getFullYear()}-${String(patients.length + 1).padStart(3, '0')}`;
+                const avatarInitial = name.split(' ').map(word => word[0]).join('').toUpperCase();
+                const avatarColor = `bg-${['blue', 'green', 'purple', 'red', 'yellow'][patients.length % 5]}-500`;
+                const newPatient = {
+                    id: newPatientId,
+                    name: name,
+                    patientId: `#${String(12345 + patients.length + 1)}`,
+                    lastVisit: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    avatarInitial: avatarInitial,
+                    avatarColor: avatarColor,
+                    age: age,
+                    gender: gender,
+                    bloodType: bloodType,
+                    weight: weight,
+                    height: height,
+                    phone: phone,
+                    email: email,
+                    address: address,
+                    medicalHistory: [],
+                    history: [`Initial Registration - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`],
+                    prescriptions: []
+                };
+                // Add to patients array
+                patients.push(newPatient);
+                // Add to Recent Patients list
+                const recentPatientsList = document.getElementById('recent-patients');
+                if (recentPatientsList) {
+                    const newPatientItem = document.createElement('li');
+                    newPatientItem.className = 'patient-item flex items-center space-x-2 p-2';
+                    newPatientItem.setAttribute('data-id', newPatientId);
+                    newPatientItem.innerHTML = `
+                        <div class="avatar-circle ${avatarColor}">${avatarInitial}</div>
+                        <div>
+                            <p class="font-semibold">${name}</p>
+                            <p class="text-sm text-gray-500">ID: ${newPatientId}</p>
+                        </div>
+                    `;
+                    newPatientItem.addEventListener('click', () => viewPatient(newPatientId));
+                    recentPatientsList.appendChild(newPatientItem);
+                }
+                // Reset button state
+                addPatientBtn.disabled = false;
+                addPatientBtn.textContent = 'Add Patient';
+                // Close modal and view the new patient
+                closeAddPatientModal();
+                viewPatient(newPatientId);
+            }
+            // Event Listeners
+            function initializeEventListeners() {
+                const patientItems = document.querySelectorAll('.patient-item');
+                patientItems.forEach(item => {
+                    const patientId = item.getAttribute('data-id');
+                    if (patientId) {
+                        item.addEventListener('click', () => viewPatient(patientId));
+                    }
+                });
+                const patientSearch = document.getElementById('patient-search');
+                if (patientSearch) {
+                    patientSearch.addEventListener('input', searchPatients);
+                }
+                const clearSearchBtn = document.getElementById('clear-search-btn');
+                if (clearSearchBtn) {
+                    clearSearchBtn.addEventListener('click', clearSearch);
+                }
+                const generateBtn = document.getElementById('generate-btn');
+                if (generateBtn) {
+                    generateBtn.addEventListener('click', generatePrescription);
+                }
+                const patientsLink = document.getElementById('patients-link');
+                if (patientsLink) {
+                    patientsLink.addEventListener('click', openAddPatientModal);
+                }
+                // Close modal when clicking outside
+                const modal = document.getElementById('add-patient-modal');
+                if (modal) {
+                    modal.addEventListener('click', (event) => {
+                        if (event.target === modal) {
+                            closeAddPatientModal();
+                        }
+                    });
+                }
+            }
+            // Initialize with the first patient
+            viewPatient('PT-2024-001');
+            initializeEventListeners();
+        })();
+    </script>
+</body>
+</html>
